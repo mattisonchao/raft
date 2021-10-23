@@ -1,8 +1,15 @@
 [package]
 name = "raft"
-version = "0.1.0"
+version = "1.0.0"
+authors = ["Mattisonchao"]
+license = "Apache-2.0"
+keywords = ["raft"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[example]]
+name = "mem_node"
+path = "examples/main.rs"
+
 
 [dependencies]
+rand = "0.8.0"
