@@ -24,6 +24,9 @@ use std::sync::Mutex;
 use std::borrow::Borrow;
 use std::ops::Add;
 use self::rand::Rng;
+use log::info;
+use tokio::time;
+use tokio::time::Interval;
 
 extern crate rand;
 
@@ -58,7 +61,7 @@ pub struct ConsensusModule {
 
     // Volatile Raft state on all servers
     state: CMState,
-    election_reset_event: Mutex<Instant>,
+    election_reset_event: Mutex<u64>,
 }
 
 impl ConsensusModule {
@@ -71,19 +74,20 @@ impl ConsensusModule {
             voted_for: -1,
             log: vec![],
             state: CMState::Follower,
-            election_reset_event: Mutex::new(Instant::now()),
+            election_reset_event: Mutex::new(Instant::now().elapsed().as_secs()),
         };
         thread::spawn(|| {
             ready();
             let mut election_reset_event = cm.election_reset_event.lock().unwrap();
-            *election_reset_event = Instant::now();
+            *election_reset_event = Instant::now().elapsed().as_secs();
         });
 
         return cm;
     }
     // electionTimeout generates a pseudo-random election timeout duration.
-    fn election_timeout(&self) -> Instant {
-        return Instant::add(Instant::now(), Duration::from_millis(150 + rand::thread_rng().gen_range(0, 150)));
+    fn election_timeout(&self) -> u64 {
+        return Instant::add(Instant::now(), Duration::from_millis(150 +
+            rand::thread_rng().gen_range(0, 150))).elapsed().as_secs();
     }
     // runElectionTimer implements an election timer. It should be launched whenever
     // we want to start a timer towards becoming a candidate in a new election.
@@ -94,5 +98,15 @@ impl ConsensusModule {
     fn run_election_timer(&self) {
         let timeout_duration = self.election_timeout();
         let current_term = *self.current_term.lock().unwrap();
+        info!("election timer started {} ,term={} ",timeout_duration, current_term);
+        let duration = Duration::from_millis(10);
+        let interval = time::interval(duration);
+        self.when_election_timeout(interval);
+    }
+    async fn when_election_timeout(&self, mut interval: Interval) {
+        loop {
+            interval.tick().await;
+            // ... do sth
+        }
     }
 }
